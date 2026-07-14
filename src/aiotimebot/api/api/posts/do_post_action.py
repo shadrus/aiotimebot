@@ -1,0 +1,120 @@
+from http import HTTPStatus
+from typing import Any
+from urllib.parse import quote
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.app_error import AppError
+from ...models.do_post_action_body import DoPostActionBody
+from ...models.do_post_action_response_200 import DoPostActionResponse200
+from ...types import UNSET, Response, Unset
+
+
+def _get_kwargs(
+    post_id: str,
+    action_id: str,
+    *,
+    body: DoPostActionBody | Unset = UNSET,
+) -> dict[str, Any]:
+    headers: dict[str, Any] = {}
+
+    _kwargs: dict[str, Any] = {
+        "method": "post",
+        "url": "/api/v4/posts/{post_id}/actions/{action_id}".format(
+            post_id=quote(str(post_id), safe=""),
+            action_id=quote(str(action_id), safe=""),
+        ),
+    }
+
+    if not isinstance(body, Unset):
+        _kwargs["json"] = body.to_dict()
+
+    headers["Content-Type"] = "application/json"
+
+    _kwargs["headers"] = headers
+    return _kwargs
+
+
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> AppError | DoPostActionResponse200 | None:
+    if response.status_code == 200:
+        response_200 = DoPostActionResponse200.from_dict(response.json())
+
+        return response_200
+
+    if response.status_code == 400:
+        response_400 = AppError.from_dict(response.json())
+
+        return response_400
+
+    if response.status_code == 401:
+        response_401 = AppError.from_dict(response.json())
+
+        return response_401
+
+    if response.status_code == 403:
+        response_403 = AppError.from_dict(response.json())
+
+        return response_403
+
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[AppError | DoPostActionResponse200]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+
+
+
+
+async def asyncio_detailed(
+    post_id: str,
+    action_id: str,
+    *,
+    client: AuthenticatedClient | Client,
+    body: DoPostActionBody | Unset = UNSET,
+) -> Response[AppError | DoPostActionResponse200]:
+    """Call this Time Messenger API v4 operation asynchronously."""
+
+    kwargs = _get_kwargs(
+        post_id=post_id,
+        action_id=action_id,
+        body=body,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    post_id: str,
+    action_id: str,
+    *,
+    client: AuthenticatedClient | Client,
+    body: DoPostActionBody | Unset = UNSET,
+) -> AppError | DoPostActionResponse200 | None:
+    """Call this Time Messenger API v4 operation asynchronously."""
+
+    return (
+        await asyncio_detailed(
+            post_id=post_id,
+            action_id=action_id,
+            client=client,
+            body=body,
+        )
+    ).parsed

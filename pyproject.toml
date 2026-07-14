@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aiotimebot"
+version = "0.1.0"
+description = "Typed asyncio SDK and bot runtime for Time Messenger API v4"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "aiotimebot contributors" }]
+dependencies = [
+    "attrs>=25.3,<26",
+    "httpx>=0.28.1,<1",
+    "python-dateutil>=2.9,<3",
+    "websockets>=15,<17",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.16,<2",
+    "openapi-python-client==0.29.0",
+    "pytest>=8.4,<10",
+    "pytest-asyncio>=1.1,<2",
+    "pytest-cov>=6.2,<8",
+    "pyyaml>=6.0.2,<7",
+    "ruff>=0.12,<1",
+    "types-pyyaml>=6.0.12,<7",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aiotimebot"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+extend-exclude = ["src/aiotimebot/api"]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
+
+[tool.mypy]
+exclude = "src/aiotimebot/api/"
+files = ["src/aiotimebot", "scripts"]
+python_version = "3.12"
+strict = true
+
+[[tool.mypy.overrides]]
+module = "aiotimebot.api.*"
+ignore_errors = true

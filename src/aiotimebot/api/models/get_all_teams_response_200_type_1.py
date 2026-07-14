@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from attrs import define as _attrs_define
+from attrs import field as _attrs_field
+
+if TYPE_CHECKING:
+    from ..models.team import Team
+
+
+T = TypeVar("T", bound="GetAllTeamsResponse200Type1")
+
+
+@_attrs_define
+class GetAllTeamsResponse200Type1:
+    """Generated Time Messenger API v4 model."""
+
+    total_count: int
+    items: list[Team]
+    has_next: bool
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        total_count = self.total_count
+
+        items = []
+        for items_item_data in self.items:
+            items_item = items_item_data.to_dict()
+            items.append(items_item)
+
+        has_next = self.has_next
+
+        field_dict: dict[str, Any] = {}
+        field_dict.update(self.additional_properties)
+        field_dict.update(
+            {
+                "total_count": total_count,
+                "items": items,
+                "has_next": has_next,
+            }
+        )
+
+        return field_dict
+
+    @classmethod
+    def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.team import Team
+
+        d = dict(src_dict)
+        total_count = d.pop("total_count")
+
+        items = []
+        _items = d.pop("items")
+        for items_item_data in _items:
+            items_item = Team.from_dict(items_item_data)
+
+            items.append(items_item)
+
+        has_next = d.pop("has_next")
+
+        get_all_teams_response_200_type_1 = cls(
+            total_count=total_count,
+            items=items,
+            has_next=has_next,
+        )
+
+        get_all_teams_response_200_type_1.additional_properties = d
+        return get_all_teams_response_200_type_1
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

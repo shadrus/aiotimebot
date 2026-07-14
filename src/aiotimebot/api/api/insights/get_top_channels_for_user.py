@@ -1,0 +1,121 @@
+from http import HTTPStatus
+from typing import Any
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.app_error import AppError
+from ...models.top_channel_list import TopChannelList
+from ...types import UNSET, Response, Unset
+
+
+def _get_kwargs(
+    *,
+    time_range: str,
+    page: int | Unset = 0,
+    per_page: int | Unset = 60,
+    team_id: str | Unset = UNSET,
+) -> dict[str, Any]:
+
+    params: dict[str, Any] = {}
+
+    params["time_range"] = time_range
+
+    params["page"] = page
+
+    params["per_page"] = per_page
+
+    params["team_id"] = team_id
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
+    _kwargs: dict[str, Any] = {
+        "method": "get",
+        "url": "/api/v4/users/me/top/channels",
+        "params": params,
+    }
+
+    return _kwargs
+
+
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> AppError | TopChannelList | None:
+    if response.status_code == 200:
+        response_200 = TopChannelList.from_dict(response.json())
+
+        return response_200
+
+    if response.status_code == 400:
+        response_400 = AppError.from_dict(response.json())
+
+        return response_400
+
+    if response.status_code == 403:
+        response_403 = AppError.from_dict(response.json())
+
+        return response_403
+
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[AppError | TopChannelList]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+
+
+
+
+async def asyncio_detailed(
+    *,
+    client: AuthenticatedClient | Client,
+    time_range: str,
+    page: int | Unset = 0,
+    per_page: int | Unset = 60,
+    team_id: str | Unset = UNSET,
+) -> Response[AppError | TopChannelList]:
+    """Call this Time Messenger API v4 operation asynchronously."""
+
+    kwargs = _get_kwargs(
+        time_range=time_range,
+        page=page,
+        per_page=per_page,
+        team_id=team_id,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    *,
+    client: AuthenticatedClient | Client,
+    time_range: str,
+    page: int | Unset = 0,
+    per_page: int | Unset = 60,
+    team_id: str | Unset = UNSET,
+) -> AppError | TopChannelList | None:
+    """Call this Time Messenger API v4 operation asynchronously."""
+
+    return (
+        await asyncio_detailed(
+            client=client,
+            time_range=time_range,
+            page=page,
+            per_page=per_page,
+            team_id=team_id,
+        )
+    ).parsed
