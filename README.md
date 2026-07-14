@@ -27,6 +27,53 @@ For local development:
 uv sync --all-groups
 ```
 
+## Installing from GitHub CI
+
+Every GitHub Actions run that passes tests, Ruff, and strict mypy builds both a
+wheel and a source distribution. Open the repository's **Actions** tab, choose a
+successful **CI** run, and download the `aiotimebot-dist` artifact.
+
+The downloaded artifact is a ZIP archive. Extract it into the consuming project,
+for example under `vendor/`, and add the wheel:
+
+```bash
+uv add ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+```
+
+With pip:
+
+```bash
+python -m pip install ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+```
+
+The same artifact can be downloaded with GitHub CLI:
+
+```bash
+gh run download RUN_ID \
+  --repo shadrus/aiotimebot \
+  --name aiotimebot-dist \
+  --dir vendor
+```
+
+After installation, import the package normally:
+
+```python
+from aiotimebot import Application, Router, TimeClient
+```
+
+For development snapshots, uv can build directly from the Git repository:
+
+```bash
+uv add git+ssh://git@github.com/shadrus/aiotimebot.git --branch main
+```
+
+For reproducible production builds, prefer a release tag or immutable commit:
+
+```bash
+uv add git+ssh://git@github.com/shadrus/aiotimebot.git \
+  --rev COMMIT_SHA
+```
+
 ## Quick start
 
 ```python
