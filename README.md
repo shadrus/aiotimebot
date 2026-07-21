@@ -71,15 +71,6 @@ With pip:
 python -m pip install ./vendor/aiotimebot-0.1.1-py3-none-any.whl
 ```
 
-The same artifact can be downloaded with GitHub CLI:
-
-```bash
-gh run download RUN_ID \
-  --repo shadrus/aiotimebot \
-  --name aiotimebot-dist \
-  --dir vendor
-```
-
 After installation, import the package normally:
 
 ```python
