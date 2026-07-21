@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable, Mapping, Sequence
 from types import TracebackType
 from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
-from uuid import uuid4
 
 import httpx
 
@@ -63,9 +63,9 @@ class TimeClient:
             token=token,
             raise_on_unexpected_status=True,
         ).set_async_httpx_client(self._http)
-        self._idempotency_key_factory = idempotency_key_factory or (
-            lambda: str(uuid4())
-        )
+        self._idempotency_key_factory = idempotency_key_factory
+        self._current_user_id: str | None = None
+        self._last_idempotency_timestamp = 0
 
     async def __aenter__(self) -> TimeClient:
         """Open the shared HTTP connection pool."""
@@ -105,9 +105,12 @@ class TimeClient:
         if len(file_ids) > 5:
             raise ValueError("Time allows at most 5 files per post")
 
+        resolved_idempotency_key = await self._resolve_idempotency_key(
+            idempotency_key
+        )
         body = CreatePostBody(
             message=text,
-            idempotency_key=idempotency_key or self._idempotency_key_factory(),
+            idempotency_key=resolved_idempotency_key,
             channel_id=channel_id if channel_id is not None else UNSET,
             peer=peer if peer is not None else UNSET,
             root_id=root_id if root_id is not None else UNSET,
@@ -131,6 +134,37 @@ class TimeClient:
                 request_id=response.headers.get("X-Request-Id"),
             )
         return Post.from_dict(payload)
+
+    async def _resolve_idempotency_key(self, explicit_key: str | None) -> str:
+        if explicit_key:
+            return explicit_key
+        if self._idempotency_key_factory is not None:
+            return self._idempotency_key_factory()
+
+        if self._current_user_id is None:
+            response = await self._http.get("/api/v4/users/me")
+            if response.is_error:
+                raise self._error_from_response(response)
+            try:
+                payload = response.json()
+            except json.JSONDecodeError as error:
+                raise APIError(
+                    "Time returned a non-JSON current user response",
+                    status_code=response.status_code,
+                    request_id=response.headers.get("X-Request-Id"),
+                ) from error
+            if not isinstance(payload, Mapping) or not payload.get("id"):
+                raise APIError(
+                    "Time returned an invalid current user response",
+                    status_code=response.status_code,
+                    request_id=response.headers.get("X-Request-Id"),
+                )
+            self._current_user_id = str(payload["id"])
+
+        now = time.time_ns() // 1_000_000
+        timestamp = max(now, self._last_idempotency_timestamp + 1)
+        self._last_idempotency_timestamp = timestamp
+        return f"{self._current_user_id}:{timestamp}"
 
     async def raw_request(
         self,

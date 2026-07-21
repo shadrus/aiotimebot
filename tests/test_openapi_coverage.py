@@ -9,6 +9,7 @@ import yaml
 
 from aiotimebot.api.client import AuthenticatedClient, Client
 from aiotimebot.api.operation_registry import OPERATION_MODULES
+from scripts.generate_api import _load_and_correct_schema
 
 CYRILLIC = re.compile(r"[\u0400-\u04ff]")
 
@@ -65,3 +66,19 @@ def test_generated_python_documentation_is_english_only() -> None:
     ]
 
     assert files_with_cyrillic == []
+
+
+def test_schema_workaround_marks_post_participants_nullable() -> None:
+    corrected = _load_and_correct_schema()
+    participants = corrected["components"]["schemas"]["Post"]["properties"][
+        "participants"
+    ]
+
+    assert participants["nullable"] is True
+
+
+def test_schema_workaround_accepts_both_save_reaction_success_statuses() -> None:
+    corrected = _load_and_correct_schema()
+    responses = corrected["paths"]["/api/v4/reactions"]["post"]["responses"]
+
+    assert responses["200"] == responses["201"]

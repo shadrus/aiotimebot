@@ -87,3 +87,139 @@ async def test_transport_does_not_retry_unsafe_post_without_key() -> None:
 
     assert response.status_code == 429
     assert attempts == 1
+
+
+@pytest.mark.parametrize("status_code", [502, 503, 504])
+async def test_transport_retries_transient_server_errors(
+    status_code: int,
+) -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            return httpx.Response(status_code, request=request)
+        return httpx.Response(200, json={"ok": True}, request=request)
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    transport = RetryingAsyncTransport(
+        httpx.MockTransport(respond),
+        policy=RetryPolicy(base_delay=0.1),
+        sleep=sleep,
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await client.get("https://time.example/api/v4/users/me")
+
+    assert response.status_code == 200
+    assert attempts == 3
+    assert delays == [0.1, 0.2]
+
+
+async def test_transport_retries_transient_error_for_idempotent_post() -> None:
+    attempts = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503 if attempts == 1 else 201, request=request)
+
+    async def sleep(delay: float) -> None:
+        return None
+
+    transport = RetryingAsyncTransport(httpx.MockTransport(respond), sleep=sleep)
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await client.post(
+            "https://time.example/api/v4/posts",
+            json={"message": "hello", "idempotency_key": "request-1"},
+        )
+
+    assert response.status_code == 201
+    assert attempts == 2
+
+
+async def test_transport_does_not_retry_transient_error_for_unsafe_post() -> None:
+    attempts = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        return httpx.Response(503, request=request)
+
+    transport = RetryingAsyncTransport(httpx.MockTransport(respond))
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await client.post(
+            "https://time.example/api/v4/posts", json={"message": "hello"}
+        )
+
+    assert response.status_code == 503
+    assert attempts == 1
+
+
+async def test_transport_retries_connection_drop_for_safe_request() -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise httpx.ReadError("connection reset", request=request)
+        return httpx.Response(200, request=request)
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    transport = RetryingAsyncTransport(httpx.MockTransport(respond), sleep=sleep)
+    async with httpx.AsyncClient(transport=transport) as client:
+        response = await client.get("https://time.example/api/v4/users/me")
+
+    assert response.status_code == 200
+    assert attempts == 2
+    assert delays == [0.25]
+
+
+async def test_transport_does_not_retry_connection_drop_for_unsafe_post() -> None:
+    attempts = 0
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ReadError("connection reset", request=request)
+
+    transport = RetryingAsyncTransport(httpx.MockTransport(respond))
+    async with httpx.AsyncClient(transport=transport) as client:
+        with pytest.raises(httpx.ReadError, match="connection reset"):
+            await client.post(
+                "https://time.example/api/v4/posts", json={"message": "hello"}
+            )
+
+    assert attempts == 1
+
+
+async def test_transport_stops_after_configured_attempt_limit() -> None:
+    attempts = 0
+    delays: list[float] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        raise httpx.ConnectError("offline", request=request)
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    transport = RetryingAsyncTransport(
+        httpx.MockTransport(respond),
+        policy=RetryPolicy(max_attempts=3, base_delay=0.1),
+        sleep=sleep,
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+        with pytest.raises(httpx.ConnectError, match="offline"):
+            await client.get("https://time.example/api/v4/users/me")
+
+    assert attempts == 3
+    assert delays == [0.1, 0.2]

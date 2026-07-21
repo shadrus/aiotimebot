@@ -34,11 +34,15 @@ class Application:
         event_source: EventSource | None = None,
         max_concurrency: int = 100,
         queue_size: int = 1_000,
+        shutdown_timeout: float | None = 30.0,
     ) -> None:
+        if shutdown_timeout is not None and shutdown_timeout < 0:
+            raise ValueError("shutdown timeout must not be negative")
         self.client = client
         self.router = router or Router()
         self.storage = storage or MemoryStateStorage()
         self.event_source = event_source or client.websocket_events()
+        self.shutdown_timeout = shutdown_timeout
         self._dispatcher = OrderedEventDispatcher(
             self._dispatch,
             max_concurrency=max_concurrency,
@@ -64,7 +68,7 @@ class Application:
     ) -> None:
         """Drain accepted events before closing network resources."""
         try:
-            await self._dispatcher.aclose()
+            await self._dispatcher.aclose(drain_timeout=self.shutdown_timeout)
         finally:
             await self.client.__aexit__(exc_type, exc_value, traceback)
 

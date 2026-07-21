@@ -26,6 +26,14 @@ class WebSocketLike(Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class AuthenticationResult:
+    """Successful handshake state and events received before its response."""
+
+    next_sequence: int
+    pending_events: tuple[TimeEvent, ...]
+
+
 def build_websocket_url(base_url: str) -> str:
     """Build Time's WebSocket endpoint from a server or API base URL."""
     parsed = urlsplit(base_url)
@@ -45,8 +53,8 @@ class WebSocketAuthenticator:
     token: str
     initial_sequence: int = 1
 
-    async def authenticate(self, socket: WebSocketLike) -> int:
-        """Authenticate a socket and return the next available sequence."""
+    async def authenticate(self, socket: WebSocketLike) -> AuthenticationResult:
+        """Authenticate a socket while preserving events sent before the reply."""
         sequence = self.initial_sequence
         await socket.send(
             json.dumps(
@@ -58,26 +66,44 @@ class WebSocketAuthenticator:
                 separators=(",", ":"),
             )
         )
-        raw_reply = await socket.recv()
-        try:
-            decoded = json.loads(
-                raw_reply.decode() if isinstance(raw_reply, bytes) else raw_reply
+        pending_events: list[TimeEvent] = []
+        while True:
+            raw_reply = await socket.recv()
+            try:
+                decoded = json.loads(
+                    raw_reply.decode() if isinstance(raw_reply, bytes) else raw_reply
+                )
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise WebSocketProtocolError(
+                    "invalid authentication response"
+                ) from error
+            if not isinstance(decoded, Mapping):
+                raise WebSocketProtocolError(
+                    "authentication response must be an object"
+                )
+            if "event" in decoded:
+                pending_events.append(parse_event(cast(Mapping[str, Any], decoded)))
+                continue
+            if "seq_reply" not in decoded:
+                raise WebSocketProtocolError(
+                    "unexpected message while awaiting authentication response"
+                )
+            if decoded.get("seq_reply") != sequence:
+                raise WebSocketProtocolError(
+                    "authentication response sequence mismatch"
+                )
+            if decoded.get("status") != "OK":
+                error_payload = decoded.get("error")
+                message = (
+                    str(error_payload.get("message", "authentication failed"))
+                    if isinstance(error_payload, Mapping)
+                    else "authentication failed"
+                )
+                raise WebSocketAuthenticationError(message)
+            return AuthenticationResult(
+                next_sequence=sequence + 1,
+                pending_events=tuple(pending_events),
             )
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WebSocketProtocolError("invalid authentication response") from error
-        if not isinstance(decoded, Mapping):
-            raise WebSocketProtocolError("authentication response must be an object")
-        if decoded.get("seq_reply") != sequence:
-            raise WebSocketProtocolError("authentication response sequence mismatch")
-        if decoded.get("status") != "OK":
-            error_payload = decoded.get("error")
-            message = (
-                str(error_payload.get("message", "authentication failed"))
-                if isinstance(error_payload, Mapping)
-                else "authentication failed"
-            )
-            raise WebSocketAuthenticationError(message)
-        return sequence + 1
 
 
 class WebSocketEventSource:
@@ -90,7 +116,11 @@ class WebSocketEventSource:
     async def events(self) -> AsyncIterator[TimeEvent]:
         """Yield events indefinitely, using websockets' reconnect backoff."""
         async for socket in connect(self._url):
-            await self._authenticator.authenticate(cast(WebSocketLike, socket))
+            authentication = await self._authenticator.authenticate(
+                cast(WebSocketLike, socket)
+            )
+            for event in authentication.pending_events:
+                yield event
             async for raw_message in socket:
                 text = (
                     raw_message.decode()

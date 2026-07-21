@@ -7,7 +7,7 @@ name = "aiotimebot"
 version = "0.1.0"
 description = "Typed asyncio SDK and bot runtime for Time Messenger API v4"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 authors = [{ name = "aiotimebot contributors" }]
 dependencies = [
     "attrs>=25.3,<26",
@@ -15,6 +15,11 @@ dependencies = [
     "python-dateutil>=2.9,<3",
     "websockets>=15,<17",
 ]
+
+[project.urls]
+Documentation = "https://github.com/shadrus/aiotimebot/tree/main/docs"
+Issues = "https://github.com/shadrus/aiotimebot/issues"
+Repository = "https://github.com/shadrus/aiotimebot"
 
 [dependency-groups]
 dev = [
@@ -36,10 +41,19 @@ addopts = "-ra --strict-config --strict-markers"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.coverage.run]
+source = ["aiotimebot"]
+omit = ["*/aiotimebot/api/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:"]
+
 [tool.ruff]
 extend-exclude = ["src/aiotimebot/api"]
 line-length = 88
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
@@ -47,7 +61,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 [tool.mypy]
 exclude = "src/aiotimebot/api/"
 files = ["src/aiotimebot", "scripts"]
-python_version = "3.12"
+python_version = "3.13"
 strict = true
 
 [[tool.mypy.overrides]]

@@ -41,6 +41,25 @@ def test_posted_event_parses_embedded_post_and_preserves_unknown_fields() -> Non
     assert event.data["future_data_field"] == 42
 
 
+def test_posted_event_accepts_null_participants_from_time_7_8() -> None:
+    raw = {
+        "event": "posted",
+        "data": {
+            "post": json.dumps(
+                post_payload(message="/ping", extra={"participants": None})
+            )
+        },
+        "broadcast": {"channel_id": "channel-1"},
+        "seq": 1,
+    }
+
+    event = parse_event(raw)
+
+    assert isinstance(event, PostedEvent)
+    assert event.post.message == "/ping"
+    assert event.post.participants is None
+
+
 def test_unknown_event_is_forward_compatible() -> None:
     raw = {
         "event": "a_future_time_event",

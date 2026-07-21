@@ -2,7 +2,7 @@
 
 `aiotimebot` is a typed, asyncio-native SDK and bot runtime for
 [Time Messenger API v4](https://docs.time-messenger.ru/api/v4/введение/). It
-targets Python 3.12 or newer and is intentionally specific to Time Messenger.
+targets Python 3.13 or newer and is intentionally specific to Time Messenger.
 
 The package combines:
 
@@ -13,13 +13,35 @@ The package combines:
 - routers, slash-command filters, and middleware;
 - bounded concurrency with strict ordering inside one channel;
 - optional in-memory conversation state;
-- idempotency-aware retries and Time rate-limit handling.
+- bounded retries for transport errors, HTTP 429, and HTTP 502/503/504,
+  guarded by Time idempotency keys for unsafe requests.
+
+## Documentation
+
+[User documentation](docs/README.md) covers:
+
+- [getting started](docs/getting-started.md), credentials, and the first bot;
+- [configuration](docs/configuration.md) and security;
+- [routing and events](docs/routing-and-events.md);
+- [messages and the complete REST API](docs/client-and-rest.md);
+- [errors and retries](docs/errors-and-retries.md);
+- [lifecycle and graceful shutdown](docs/lifecycle.md);
+- [state storage](docs/state-storage.md);
+- [recipes](docs/recipes.md) and
+  [Time 7.8 compatibility](docs/time-7.8-compatibility.md);
+- the [public API reference](docs/api-reference.md) and generated
+  [470-operation catalog](docs/api-operations.md).
 
 ## Installation
 
+Install a published release from the configured package index:
+
 ```bash
-pip install aiotimebot
+python -m pip install aiotimebot
 ```
+
+If no package-index release is available yet, install a wheel from a successful
+GitHub CI run as described below.
 
 For local development:
 
@@ -78,6 +100,7 @@ uv add git+ssh://git@github.com/shadrus/aiotimebot.git \
 
 ```python
 import asyncio
+import os
 
 from aiotimebot import (
     Application,
@@ -104,8 +127,8 @@ async def ping(event: PostedEvent, context: HandlerContext) -> None:
 
 async def main() -> None:
     client = TimeClient(
-        base_url="https://time.example.com",
-        token="personal-access-token",
+        base_url=os.environ["TIME_BASE_URL"],
+        token=os.environ["TIME_TOKEN"],
     )
     application = Application(client, router=router)
 
@@ -118,7 +141,9 @@ asyncio.run(main())
 
 `Application` stops event ingestion before draining accepted handler work and
 closing its shared HTTP resources. It does not create or control the caller's
-event loop.
+event loop. See [Getting started](docs/getting-started.md) for credential and
+channel prerequisites, including the Time UI behavior for unknown slash
+commands.
 
 ## Sending posts
 
@@ -145,6 +170,12 @@ may supply its own key when it needs to correlate retries with external work.
 Time permits at most five files on one post, and the client validates that limit
 before network I/O.
 
+Time 7.8 only deduplicates post keys formatted as
+`<current_user_id>:<millisecond_timestamp>`. When no key or custom factory is
+provided, the client resolves `/api/v4/users/me` once, caches the user ID, and
+generates strictly increasing timestamps. Supplying an explicit key or
+`idempotency_key_factory` avoids this lookup.
+
 ## Complete typed REST API
 
 The `client.api` property is the authenticated generated client. Each operation
@@ -169,7 +200,8 @@ if isinstance(result, User):
 Generated endpoint modules also provide `asyncio_detailed()` when status,
 headers, and raw content are required. `TimeClient.raw_request()` is the escape
 hatch for server extensions and API additions that are not yet present in the
-vendored schema.
+vendored schema. Browse every generated import path in the
+[REST operation catalog](docs/api-operations.md).
 
 ## Routing and middleware
 
@@ -197,7 +229,8 @@ async def tracing(event, context, call_next):
 ```
 
 Return `Propagation.STOP` from a handler to prevent later handlers and nested
-routers from receiving the event.
+routers from receiving the event. Specialized and raw event behavior is covered
+in [Routing and events](docs/routing-and-events.md).
 
 ## Event ordering
 
@@ -214,6 +247,11 @@ partitions execute concurrently up to `Application(max_concurrency=...)`.
 Queue capacity is bounded by `queue_size`, so ingestion applies backpressure
 instead of creating unlimited background tasks.
 
+On context exit, `Application` rejects new events and drains accepted work for
+up to `shutdown_timeout` seconds (30 seconds by default). It then cancels and
+awaits unfinished handlers before closing the HTTP client. Set
+`shutdown_timeout=None` to wait without a deadline.
+
 Unknown WebSocket event names become `RawEvent` instances. Unknown fields on
 generated REST models remain in `additional_properties`, and every handwritten
 event retains its complete original envelope in `event.raw`.
@@ -227,12 +265,22 @@ uses the REST API for commands. Time webhooks are integration endpoints rather
 than the general authenticated event stream, so they are not used as the bot
 runtime transport.
 
+Some Time 7.8 deployments send the initial `hello` event before the response to
+`authentication_challenge`, although the API document shows the opposite order.
+The runtime preserves such early events and waits for the response carrying the
+matching `seq_reply` before exposing them to handlers.
+
+For production cancellation, SIGTERM integration, error behavior, retry
+configuration, and optional state, use the dedicated user documentation rather
+than relying only on this overview.
+
 ## Development
 
 The project uses test-first development. Run the complete verification set with:
 
 ```bash
 uv run pytest
+uv run pytest --cov --cov-report=term-missing --cov-fail-under=95
 uv run ruff check .
 uv run mypy
 ```

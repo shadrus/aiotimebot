@@ -32,6 +32,11 @@ def _get_kwargs(
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> AppError | Reaction | None:
+    if response.status_code == 200:
+        response_200 = Reaction.from_dict(response.json())
+
+        return response_200
+
     if response.status_code == 201:
         response_201 = Reaction.from_dict(response.json())
 

@@ -44,7 +44,7 @@ class Post:
     file_ids: list[str] | Unset = UNSET
     has_reactions: bool | Unset = UNSET
     remote_id: str | Unset = UNSET
-    participants: list[PostParticipant] | Unset = UNSET
+    participants: list[PostParticipant] | None | Unset = UNSET
     is_following: bool | Unset = UNSET
     metadata: PostMetadata | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
@@ -98,12 +98,17 @@ class Post:
 
         remote_id = self.remote_id
 
-        participants: list[dict[str, Any]] | Unset = UNSET
-        if not isinstance(self.participants, Unset):
+        participants: list[dict[str, Any]] | None | Unset
+        if isinstance(self.participants, Unset):
+            participants = UNSET
+        elif isinstance(self.participants, list):
             participants = []
-            for participants_item_data in self.participants:
-                participants_item = participants_item_data.to_dict()
-                participants.append(participants_item)
+            for participants_type_0_item_data in self.participants:
+                participants_type_0_item = participants_type_0_item_data.to_dict()
+                participants.append(participants_type_0_item)
+
+        else:
+            participants = self.participants
 
         is_following = self.is_following
 
@@ -207,14 +212,29 @@ class Post:
 
         remote_id = d.pop("remote_id", UNSET)
 
-        _participants = d.pop("participants", UNSET)
-        participants: list[PostParticipant] | Unset = UNSET
-        if _participants is not UNSET:
-            participants = []
-            for participants_item_data in _participants:
-                participants_item = PostParticipant.from_dict(participants_item_data)
+        def _parse_participants(data: object) -> list[PostParticipant] | None | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            try:
+                if not isinstance(data, list):
+                    raise TypeError()
+                participants_type_0 = []
+                _participants_type_0 = data
+                for participants_type_0_item_data in _participants_type_0:
+                    participants_type_0_item = PostParticipant.from_dict(
+                        participants_type_0_item_data
+                    )
 
-                participants.append(participants_item)
+                    participants_type_0.append(participants_type_0_item)
+
+                return participants_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(list[PostParticipant] | None | Unset, data)
+
+        participants = _parse_participants(d.pop("participants", UNSET))
 
         is_following = d.pop("is_following", UNSET)
 

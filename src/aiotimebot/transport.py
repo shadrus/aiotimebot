@@ -14,6 +14,7 @@ from .retry import RetryPolicy
 
 Sleep = Callable[[float], Awaitable[None]]
 Clock = Callable[[], float]
+TRANSIENT_STATUS_CODES = frozenset({502, 503, 504})
 
 
 class RetryingAsyncTransport(httpx.AsyncBaseTransport):
@@ -41,24 +42,29 @@ class RetryingAsyncTransport(httpx.AsyncBaseTransport):
         return decoded if isinstance(decoded, Mapping) else None
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        """Send a request with bounded connect and HTTP 429 retries."""
+        """Send a request with bounded transport, rate-limit, and 5xx retries."""
         can_retry = self._policy.allows_retry(request.method, self._body(request))
         for attempt in range(1, self._policy.max_attempts + 1):
             try:
                 response = await self._transport.handle_async_request(request)
-            except (httpx.ConnectError, httpx.ConnectTimeout):
+            except httpx.TransportError:
                 if not can_retry or attempt == self._policy.max_attempts:
                     raise
                 await self._sleep(self._policy.backoff_delay(attempt))
                 continue
 
-            if (
-                response.status_code != 429
-                or not can_retry
-                or attempt == self._policy.max_attempts
-            ):
+            if not can_retry or attempt == self._policy.max_attempts:
                 return response
-            delay = self._policy.rate_limit_delay(response.headers, now=self._clock())
+
+            if response.status_code == 429:
+                delay = self._policy.rate_limit_delay(
+                    response.headers, now=self._clock()
+                )
+            elif response.status_code in TRANSIENT_STATUS_CODES:
+                delay = self._policy.backoff_delay(attempt)
+            else:
+                return response
+
             await response.aclose()
             await self._sleep(delay)
         raise AssertionError("retry loop exhausted without returning")
