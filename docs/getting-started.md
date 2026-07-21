@@ -37,13 +37,13 @@ python -m pip install aiotimebot
 From a downloaded wheel:
 
 ```bash
-python -m pip install ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+python -m pip install ./vendor/aiotimebot-0.1.1-py3-none-any.whl
 ```
 
 With uv:
 
 ```bash
-uv add ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+uv add ./vendor/aiotimebot-0.1.1-py3-none-any.whl
 ```
 
 ## Verify the credentials

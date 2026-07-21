@@ -1,0 +1,95 @@
+name: Release
+
+"on":
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and verify distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Verify release tag
+        shell: bash
+        run: |
+          project_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "v${project_version}" = "${GITHUB_REF_NAME}"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Run tests
+        run: uv run --frozen pytest --cov --cov-report=term-missing --cov-fail-under=95
+
+      - name: Run Ruff
+        run: uv run --frozen ruff check .
+
+      - name: Run strict mypy
+        run: uv run --frozen mypy
+
+      - name: Verify reproducible REST generation
+        run: |
+          cp -a src/aiotimebot/api /tmp/aiotimebot-api-before-generation
+          cp docs/api-operations.md /tmp/aiotimebot-api-operations-before-generation.md
+          uv run --frozen python scripts/generate_api.py
+          diff -qr --exclude=__pycache__ /tmp/aiotimebot-api-before-generation src/aiotimebot/api
+          diff -q /tmp/aiotimebot-api-operations-before-generation.md docs/api-operations.md
+
+      - name: Build wheel and source distribution
+        run: uv build --no-sources
+
+      - name: Check distribution metadata
+        run: uv run --frozen twine check --strict dist/*
+
+      - name: Verify wheel installation
+        run: |
+          uv venv --python 3.13 .wheel-venv
+          uv pip install --python .wheel-venv/bin/python dist/*.whl
+          .wheel-venv/bin/python -c "from aiotimebot import TimeClient"
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: aiotimebot-release-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/aiotimebot
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: aiotimebot-release-dist
+          path: dist
+
+      - name: Publish distributions
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0

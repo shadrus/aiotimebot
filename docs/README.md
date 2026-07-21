@@ -26,6 +26,10 @@ Reference and recipes:
 - [Common recipes](recipes.md)
 - [Time 7.8 compatibility](time-7.8-compatibility.md)
 
+Maintainer documentation:
+
+- [Release process](releasing.md)
+
 The generated REST layer follows the vendored Time OpenAPI schema. Consult the
 [Time Messenger API v4 documentation](https://docs.time-messenger.ru/api/v4/введение/)
 for endpoint semantics and server-side permission requirements.

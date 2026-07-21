@@ -18,19 +18,22 @@ The package combines:
 
 ## Documentation
 
-[User documentation](docs/README.md) covers:
+[User documentation](https://github.com/shadrus/aiotimebot/tree/main/docs) covers:
 
-- [getting started](docs/getting-started.md), credentials, and the first bot;
-- [configuration](docs/configuration.md) and security;
-- [routing and events](docs/routing-and-events.md);
-- [messages and the complete REST API](docs/client-and-rest.md);
-- [errors and retries](docs/errors-and-retries.md);
-- [lifecycle and graceful shutdown](docs/lifecycle.md);
-- [state storage](docs/state-storage.md);
-- [recipes](docs/recipes.md) and
-  [Time 7.8 compatibility](docs/time-7.8-compatibility.md);
-- the [public API reference](docs/api-reference.md) and generated
-  [470-operation catalog](docs/api-operations.md).
+- [getting started](https://github.com/shadrus/aiotimebot/blob/main/docs/getting-started.md),
+  credentials, and the first bot;
+- [configuration](https://github.com/shadrus/aiotimebot/blob/main/docs/configuration.md)
+  and security;
+- [routing and events](https://github.com/shadrus/aiotimebot/blob/main/docs/routing-and-events.md);
+- [messages and the complete REST API](https://github.com/shadrus/aiotimebot/blob/main/docs/client-and-rest.md);
+- [errors and retries](https://github.com/shadrus/aiotimebot/blob/main/docs/errors-and-retries.md);
+- [lifecycle and graceful shutdown](https://github.com/shadrus/aiotimebot/blob/main/docs/lifecycle.md);
+- [state storage](https://github.com/shadrus/aiotimebot/blob/main/docs/state-storage.md);
+- [recipes](https://github.com/shadrus/aiotimebot/blob/main/docs/recipes.md) and
+  [Time 7.8 compatibility](https://github.com/shadrus/aiotimebot/blob/main/docs/time-7.8-compatibility.md);
+- the [public API reference](https://github.com/shadrus/aiotimebot/blob/main/docs/api-reference.md)
+  and generated
+  [470-operation catalog](https://github.com/shadrus/aiotimebot/blob/main/docs/api-operations.md).
 
 ## Installation
 
@@ -59,13 +62,13 @@ The downloaded artifact is a ZIP archive. Extract it into the consuming project,
 for example under `vendor/`, and add the wheel:
 
 ```bash
-uv add ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+uv add ./vendor/aiotimebot-0.1.1-py3-none-any.whl
 ```
 
 With pip:
 
 ```bash
-python -m pip install ./vendor/aiotimebot-0.1.0-py3-none-any.whl
+python -m pip install ./vendor/aiotimebot-0.1.1-py3-none-any.whl
 ```
 
 The same artifact can be downloaded with GitHub CLI:
@@ -141,7 +144,9 @@ asyncio.run(main())
 
 `Application` stops event ingestion before draining accepted handler work and
 closing its shared HTTP resources. It does not create or control the caller's
-event loop. See [Getting started](docs/getting-started.md) for credential and
+event loop. See
+[Getting started](https://github.com/shadrus/aiotimebot/blob/main/docs/getting-started.md)
+for credential and
 channel prerequisites, including the Time UI behavior for unknown slash
 commands.
 
@@ -201,7 +206,7 @@ Generated endpoint modules also provide `asyncio_detailed()` when status,
 headers, and raw content are required. `TimeClient.raw_request()` is the escape
 hatch for server extensions and API additions that are not yet present in the
 vendored schema. Browse every generated import path in the
-[REST operation catalog](docs/api-operations.md).
+[REST operation catalog](https://github.com/shadrus/aiotimebot/blob/main/docs/api-operations.md).
 
 ## Routing and middleware
 
@@ -230,7 +235,8 @@ async def tracing(event, context, call_next):
 
 Return `Propagation.STOP` from a handler to prevent later handlers and nested
 routers from receiving the event. Specialized and raw event behavior is covered
-in [Routing and events](docs/routing-and-events.md).
+in
+[Routing and events](https://github.com/shadrus/aiotimebot/blob/main/docs/routing-and-events.md).
 
 ## Event ordering
 
@@ -297,4 +303,4 @@ then verifies that every one of the schema's 470 `operationId` values imports an
 async implementation.
 
 More detailed invariants and contribution rules are recorded in
-[`AGENTS.md`](AGENTS.md).
+[`AGENTS.md`](https://github.com/shadrus/aiotimebot/blob/main/AGENTS.md).

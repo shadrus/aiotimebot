@@ -4,11 +4,24 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aiotimebot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Typed asyncio SDK and bot runtime for Time Messenger API v4"
 readme = "README.md"
 requires-python = ">=3.13"
-authors = [{ name = "aiotimebot contributors" }]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Yury Krylov" }]
+maintainers = [{ name = "Yury Krylov" }]
+keywords = ["asyncio", "bot", "sdk", "time-messenger"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
 dependencies = [
     "attrs>=25.3,<26",
     "httpx>=0.28.1,<1",
@@ -17,6 +30,7 @@ dependencies = [
 ]
 
 [project.urls]
+Changelog = "https://github.com/shadrus/aiotimebot/blob/main/CHANGELOG.md"
 Documentation = "https://github.com/shadrus/aiotimebot/tree/main/docs"
 Issues = "https://github.com/shadrus/aiotimebot/issues"
 Repository = "https://github.com/shadrus/aiotimebot"
@@ -30,6 +44,7 @@ dev = [
     "pytest-cov>=6.2,<8",
     "pyyaml>=6.0.2,<7",
     "ruff>=0.12,<1",
+    "twine>=6.1,<7",
     "types-pyyaml>=6.0.12,<7",
 ]
 
